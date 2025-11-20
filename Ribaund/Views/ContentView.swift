@@ -13,9 +13,8 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             
-            // 🌟 CLS FIX: Always draw the main VStack, use conditionals for content
-            VStack {
-                // Only show Picker once categories are loaded
+            VStack(spacing: 0) {
+                // 1. Segmented Picker (Sticky to the top)
                 if service.isCategoriesLoaded {
                     Picker("Category", selection: $selectedCategoryId) {
                         ForEach(service.categories, id: \.id) { category in
@@ -24,12 +23,13 @@ struct ContentView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
+                    .padding(.bottom, 8)
                 }
 
-                // 🌟 CLS FIX: The Group is forced to fill the space, preventing jumps 🌟
+                // 2. Content Area (Loading, Error, or List)
                 Group {
                     if !service.isCategoriesLoaded || service.isLoading {
-                        ProgressView("Loading News...")
+                        ProgressView("Yükleniyor...")
                             .scaleEffect(1.5)
                     } else if service.lastFetchError != nil {
                         ErrorView(error: service.lastFetchError ?? "An unknown error occurred.")
@@ -38,9 +38,9 @@ struct ContentView: View {
                             Image(systemName: "newspaper.slash")
                                 .font(.largeTitle)
                                 .foregroundColor(.gray)
-                            Text("No News Found")
+                            Text("Bu kategoride haber bulunamadı.")
                                 .font(.headline)
-                            Text("Try selecting a different category or checking your internet connection.")
+                            Text("Lütfen başka bir kategori seçin ve ya internet bağlantınızı kontrol edin.")
                                 .font(.subheadline)
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.gray)
@@ -48,21 +48,33 @@ struct ContentView: View {
                         .padding()
                     } else {
                         // Display the list of posts
-                        List(service.posts) { post in
-                            if post.title != nil || post.content != nil {
-                                NavigationLink(destination: PostDetailView(post: post)) {
-                                    PostRowView(post: post, service: service)
+                        List {
+                            ForEach(service.posts) { post in
+                                if post.title != nil || post.content != nil {
+                                    // 💡 REMOVED THE ARROW: Use a ZStack or a hidden NavigationLink to suppress the indicator
+                                    ZStack {
+                                        // Invisible NavigationLink to handle the navigation action
+                                        NavigationLink(destination: PostDetailView(post: post, service: service)) {
+                                            EmptyView()
+                                        }
+                                        .opacity(0)
+                                        
+                                        // The actual, styled row content
+                                        PostRowView(post: post, service: service)
+                                    }
+                                    .listRowSeparator(.hidden) // Hide the separator
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)) // Custom padding
+                                    .background(Color.clear)
                                 }
                             }
                         }
-                        .listStyle(.plain)
+                        .listStyle(.plain) // Use plain style for clean modern look
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity) // ⬅️ THIS FIXES THE JUMP
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle("Ribaund News")
+            .navigationTitle("Ribaund ")
             .task {
-                // Ensure initial fetches run once when the view appears
                 await service.fetchCategories()
                 await service.fetchPosts()
             }

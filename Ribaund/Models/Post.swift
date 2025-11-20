@@ -16,27 +16,47 @@ struct Post: Identifiable, Codable {
     let title: Content?
     let content: Content?
     
+    // Add the featured_media ID to the model
+    let featuredMediaId: Int?
+    
     enum CodingKeys: String, CodingKey {
         case id, date, title, content
         case embedded = "_embedded"
+        case featuredMediaId = "featured_media" // Map "featured_media" ID
     }
 
     let embedded: Embedded?
     
-    // 🌟 ENHANCED ROBUST IMAGE URL COMPUTATION 🌟
+    // 🌟 ULTIMATE ROBUST IMAGE URL COMPUTATION 🌟
     var featuredImageURL: String? {
-        // 1. Try to get the thumbnail size (preferred)
-        if let thumbnailURL = embedded?.featuredMedia?.first?.mediaDetails?.sizes?.thumbnail?.sourceURL {
-            return thumbnailURL
+        let media = embedded?.featuredMedia?.first
+        
+        // 1. Check for a high-level source_url directly on the mediaDetails object
+        if let directURL = media?.mediaDetails?.sourceURL {
+            return directURL
         }
-        // 2. Fallback to the 'full' size if thumbnail is missing
-        if let fullURL = embedded?.featuredMedia?.first?.mediaDetails?.sizes?.full?.sourceURL {
-            return fullURL
+        
+        // 2. Try specific sizes via mediaDetails
+        if let sizes = media?.mediaDetails?.sizes {
+            // Check Full (most reliable size when others fail)
+            if let fullURL = sizes.full?.sourceURL {
+                return fullURL
+            }
+            // Check Thumbnail (best for list)
+            if let thumbnailURL = sizes.thumbnail?.sourceURL {
+                return thumbnailURL
+            }
+            // Check Medium (medium-quality fallback)
+            if let mediumURL = sizes.medium?.sourceURL {
+                return mediumURL
+            }
         }
-        // 3. Fallback to the 'medium' size if both are missing
-        if let mediumURL = embedded?.featuredMedia?.first?.mediaDetails?.sizes?.medium?.sourceURL {
-            return mediumURL
+        
+        // 3. Check for the main post image source directly on the media object itself
+        if let mediaSourceURL = media?.sourceURL {
+            return mediaSourceURL
         }
+        
         return nil
     }
 
@@ -53,16 +73,28 @@ struct Post: Identifiable, Codable {
     
     struct FeaturedMedia: Codable {
         let mediaDetails: MediaDetails?
+        let sourceURL: String? // Added for ultimate fallback
+        
+        enum CodingKeys: String, CodingKey {
+            case mediaDetails
+            case sourceURL = "source_url" // Common high-level URL
+        }
     }
     
     struct MediaDetails: Codable {
         let sizes: Sizes?
+        let sourceURL: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case sizes
+            case sourceURL = "source_url" // Common high-level URL
+        }
     }
     
     struct Sizes: Codable {
         let thumbnail: SourceDetails?
-        let medium: SourceDetails? // Added fallback size
-        let full: SourceDetails?    // Added fallback size
+        let medium: SourceDetails?
+        let full: SourceDetails?
     }
     
     struct SourceDetails: Codable {

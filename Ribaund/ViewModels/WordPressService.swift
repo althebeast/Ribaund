@@ -19,15 +19,30 @@ class WordPressService: ObservableObject {
     
     /// Helper functions (date formatting, HTML stripping, content formatting)
     func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        // 1. Try ISO8601 with flexible options (Standard WordPress format)
+        let isoFormatter = ISO8601DateFormatter()
+        // Removed .withFractionalSeconds to handle dates without milliseconds
+        isoFormatter.formatOptions = [.withInternetDateTime]
         
-        if let date = formatter.date(from: dateString) {
+        if let date = isoFormatter.date(from: dateString) {
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
             displayFormatter.timeStyle = .short
             return displayFormatter.string(from: date)
         }
+        
+        // 2. Fallback for potential alternative formats (if ISO8601 fails)
+        let dateFormatter = DateFormatter()
+        // Example fallback format: "yyyy-MM-dd'T'HH:mm:ss"
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        
+        if let date = dateFormatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            return displayFormatter.string(from: date)
+        }
+        
         return "Unknown Date"
     }
     
@@ -37,12 +52,17 @@ class WordPressService: ObservableObject {
         cleanedText = cleanedText.replacingOccurrences(of: "&#8217;", with: "'")
         cleanedText = cleanedText.replacingOccurrences(of: "&#8220;", with: "\"")
         cleanedText = cleanedText.replacingOccurrences(of: "&#8221;", with: "\"")
+        
+        // Explicitly handle common entities like Non-Breaking Space
+        cleanedText = cleanedText.replacingOccurrences(of: "&nbsp;", with: " ")
+        
         return cleanedText
     }
     
     func formatContentText(from html: String) -> String {
         var formattedText = html
         
+        // 1. Replace block elements with newlines/separators
         formattedText = formattedText.replacingOccurrences(of: "</?p.*?>", with: "\n\n", options: .regularExpression, range: nil)
         formattedText = formattedText.replacingOccurrences(of: "</?h[1-6].*?>", with: "\n", options: .regularExpression, range: nil)
         formattedText = formattedText.replacingOccurrences(of: "<br\\s*?/?>", with: "\n", options: .regularExpression, range: nil)
@@ -50,14 +70,19 @@ class WordPressService: ObservableObject {
         formattedText = formattedText.replacingOccurrences(of: "<li.*?>", with: "\n• ", options: .regularExpression, range: nil)
         formattedText = formattedText.replacingOccurrences(of: "</?ul.*?>|</?ol.*?>|</?li>", with: "", options: .regularExpression, range: nil)
         
+        // 2. Remove all remaining HTML tags
         formattedText = formattedText.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
         
+        // 3. Decode common HTML entities (including &nbsp; fix)
+        formattedText = formattedText.replacingOccurrences(of: "&nbsp;", with: " ") // 💡 The new fix for &nbsp;
         formattedText = formattedText.replacingOccurrences(of: "&amp;", with: "&")
         formattedText = formattedText.replacingOccurrences(of: "&gt;", with: ">")
         formattedText = formattedText.replacingOccurrences(of: "&lt;", with: "<")
         formattedText = formattedText.replacingOccurrences(of: "&#8217;", with: "'")
         formattedText = formattedText.replacingOccurrences(of: "&#8220;", with: "\"")
         formattedText = formattedText.replacingOccurrences(of: "&#8221;", with: "\"")
+        
+        // 4. Clean up spacing and newlines
         formattedText = formattedText.trimmingCharacters(in: .whitespacesAndNewlines)
         formattedText = formattedText.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression, range: nil)
         
@@ -78,7 +103,6 @@ class WordPressService: ObservableObject {
                 self.isCategoriesLoaded = true // Mark categories as loaded
             }
         } catch {
-            print("❌ Category fetching failed: \(error.localizedDescription)")
             await MainActor.run {
                  self.isCategoriesLoaded = true // Mark as loaded even on failure to stop spinner
             }
@@ -96,8 +120,6 @@ class WordPressService: ObservableObject {
         if let id = categoryId, id != 0 {
             urlString += "&categories=\(id)"
         }
-        
-        print("➡️ Attempting to fetch posts from URL: \(urlString)")
         
         guard let url = URL(string: urlString) else {
             await MainActor.run {
@@ -117,8 +139,6 @@ class WordPressService: ObservableObject {
                 }
                 return
             }
-            
-            print("⬅️ Received status code: \(httpResponse.statusCode)")
 
             guard httpResponse.statusCode == 200 else {
                 await MainActor.run {
@@ -133,14 +153,12 @@ class WordPressService: ObservableObject {
             await MainActor.run {
                 self.posts = decodedPosts
                 self.isLoading = false
-                print("✅ Successfully fetched \(decodedPosts.count) posts.")
             }
 
         } catch {
             await MainActor.run {
                 self.isLoading = false
                 self.lastFetchError = "Decoding failed: \(error.localizedDescription)"
-                print("❌ Post decoding failed with error: \(error)")
             }
         }
     }
