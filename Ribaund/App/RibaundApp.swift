@@ -12,6 +12,7 @@ struct RibaundApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(WordPressService())
         }
     }
 }

@@ -6,17 +6,30 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		840E9ED92EB16052000880BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 840E9ED52EB16052000880BD /* Assets.xcassets */; };
+		840E9EDA2EB16052000880BD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840E9ED62EB16052000880BD /* ContentView.swift */; };
+		840E9EDB2EB16052000880BD /* RibaundApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840E9ED72EB16052000880BD /* RibaundApp.swift */; };
+		840E9EE12EB16090000880BD /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840E9EE02EB16090000880BD /* Post.swift */; };
+		8435994F2ECFAC0E00B6CCAC /* WordPressService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8435994E2ECFAC0E00B6CCAC /* WordPressService.swift */; };
+		843599512ECFAC7000B6CCAC /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843599502ECFAC7000B6CCAC /* PostDetailView.swift */; };
+		843599532ECFB01A00B6CCAC /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843599522ECFB01A00B6CCAC /* Category.swift */; };
+		843599552ECFB07500B6CCAC /* PostRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843599542ECFB07500B6CCAC /* PostRowView.swift */; };
+		843599572ECFB2BB00B6CCAC /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843599562ECFB2BB00B6CCAC /* ErrorView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		840E9EC72EB1604B000880BD /* Ribaund.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ribaund.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		840E9ED52EB16052000880BD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		840E9ED62EB16052000880BD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		840E9ED72EB16052000880BD /* RibaundApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RibaundApp.swift; sourceTree = "<group>"; };
+		840E9EE02EB16090000880BD /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Post.swift; sourceTree = "<group>"; };
+		8435994E2ECFAC0E00B6CCAC /* WordPressService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordPressService.swift; sourceTree = "<group>"; };
+		843599502ECFAC7000B6CCAC /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
+		843599522ECFB01A00B6CCAC /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
+		843599542ECFB07500B6CCAC /* PostRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostRowView.swift; sourceTree = "<group>"; };
+		843599562ECFB2BB00B6CCAC /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		840E9EC92EB1604B000880BD /* Ribaund */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Ribaund;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		840E9EC42EB1604B000880BD /* Frameworks */ = {
@@ -32,7 +45,7 @@
 		840E9EBE2EB1604B000880BD = {
 			isa = PBXGroup;
 			children = (
-				840E9EC92EB1604B000880BD /* Ribaund */,
+				840E9ED82EB16052000880BD /* Ribaund */,
 				840E9EC82EB1604B000880BD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +56,54 @@
 				840E9EC72EB1604B000880BD /* Ribaund.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		840E9ED82EB16052000880BD /* Ribaund */ = {
+			isa = PBXGroup;
+			children = (
+				840E9EDF2EB16074000880BD /* ViewModels */,
+				840E9EDE2EB1606E000880BD /* Views */,
+				840E9EDD2EB16059000880BD /* Models */,
+				840E9EDC2EB16054000880BD /* App */,
+				840E9ED52EB16052000880BD /* Assets.xcassets */,
+			);
+			path = Ribaund;
+			sourceTree = "<group>";
+		};
+		840E9EDC2EB16054000880BD /* App */ = {
+			isa = PBXGroup;
+			children = (
+				840E9ED72EB16052000880BD /* RibaundApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		840E9EDD2EB16059000880BD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				840E9EE02EB16090000880BD /* Post.swift */,
+				843599522ECFB01A00B6CCAC /* Category.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		840E9EDE2EB1606E000880BD /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				840E9ED62EB16052000880BD /* ContentView.swift */,
+				843599502ECFAC7000B6CCAC /* PostDetailView.swift */,
+				843599542ECFB07500B6CCAC /* PostRowView.swift */,
+				843599562ECFB2BB00B6CCAC /* ErrorView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		840E9EDF2EB16074000880BD /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				8435994E2ECFAC0E00B6CCAC /* WordPressService.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -59,9 +120,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				840E9EC92EB1604B000880BD /* Ribaund */,
 			);
 			name = Ribaund;
 			packageProductDependencies = (
@@ -109,6 +167,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				840E9ED92EB16052000880BD /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +178,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				840E9EE12EB16090000880BD /* Post.swift in Sources */,
+				843599512ECFAC7000B6CCAC /* PostDetailView.swift in Sources */,
+				843599552ECFB07500B6CCAC /* PostRowView.swift in Sources */,
+				840E9EDA2EB16052000880BD /* ContentView.swift in Sources */,
+				840E9EDB2EB16052000880BD /* RibaundApp.swift in Sources */,
+				8435994F2ECFAC0E00B6CCAC /* WordPressService.swift in Sources */,
+				843599532ECFB01A00B6CCAC /* Category.swift in Sources */,
+				843599572ECFB2BB00B6CCAC /* ErrorView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
