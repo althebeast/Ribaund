@@ -72,7 +72,7 @@ struct PostDetailView: View {
                                 proxy.scrollTo("comments", anchor: .top)
                             }
                         } label: {
-                            Image(systemName: "message.bubble.left.and.text")
+                            Image(systemName: "message.badge")
                                 .foregroundColor(.gray)
                                 .overlay(
                                     Group {

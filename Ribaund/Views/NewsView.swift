@@ -76,5 +76,6 @@ struct NewsView: View {
                 Task { await service.fetchPosts(for: newId, forceRefresh: true) }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }

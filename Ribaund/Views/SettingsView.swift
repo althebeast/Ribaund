@@ -86,6 +86,7 @@ struct SettingsView: View {
             .navigationTitle("Ayarlar")
             .navigationBarHidden(true)
         }
+        .navigationViewStyle(.stack)
     }
 }
 

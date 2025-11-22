@@ -47,5 +47,6 @@ struct FavoritesView: View {
             }
             .navigationTitle("Favoriler")
         }
+        .navigationViewStyle(.stack)
     }
 }
