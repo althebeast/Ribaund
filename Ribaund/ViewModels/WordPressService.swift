@@ -15,6 +15,9 @@ class WordPressService: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastFetchError: String? = nil
     @Published var isCategoriesLoaded: Bool = false
+    
+    @Published var comments: [Int: [Comment]] = [:] // [PostID: [Comments]]
+    @Published var currentLoadedCategoryId: Int = 0 
 
     
     /// Helper functions (date formatting, HTML stripping, content formatting)
@@ -27,7 +30,7 @@ class WordPressService: ObservableObject {
         if let date = isoFormatter.date(from: dateString) {
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
+            displayFormatter.timeStyle = .none
             return displayFormatter.string(from: date)
         }
         
@@ -39,7 +42,7 @@ class WordPressService: ObservableObject {
         if let date = dateFormatter.date(from: dateString) {
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
+            displayFormatter.timeStyle = .none
             return displayFormatter.string(from: date)
         }
         
@@ -90,76 +93,162 @@ class WordPressService: ObservableObject {
     }
     
     func fetchCategories() async {
-        let urlString = "\(baseURL)/categories?per_page=100"
-        guard let url = URL(string: urlString) else { return }
-
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let decodedCategories = try JSONDecoder().decode([Category].self, from: data)
-
-            await MainActor.run {
-                self.categories = [Category(id: 0, name: "All News")]
-                self.categories.append(contentsOf: decodedCategories.filter { $0.id != 1 })
-                self.isCategoriesLoaded = true // Mark categories as loaded
-            }
-        } catch {
-            await MainActor.run {
-                 self.isCategoriesLoaded = true // Mark as loaded even on failure to stop spinner
-            }
-        }
-    }
-
-    func fetchPosts(for categoryId: Int? = nil) async {
-        await MainActor.run {
-            self.isLoading = true
-            self.lastFetchError = nil
-        }
-        
-        var urlString = "\(baseURL)/posts?per_page=15&_embed=true"
-        
-        if let id = categoryId, id != 0 {
-            urlString += "&categories=\(id)"
-        }
-        
-        guard let url = URL(string: urlString) else {
-            await MainActor.run {
-                self.isLoading = false
-                self.lastFetchError = "Invalid API URL."
-            }
-            return
-        }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
+            let urlString = "\(baseURL)/categories?per_page=100"
+            guard let url = URL(string: urlString) else { return }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                let decodedCategories = try JSONDecoder().decode([Category].self, from: data)
                 await MainActor.run {
-                    self.isLoading = false
-                    self.lastFetchError = "Received non-HTTP response."
+                    // 💡 CHANGE HERE: Updated the default hardcoded category name
+                    self.categories = [Category(id: 0, name: "Haberler")]
+                    self.categories.append(contentsOf: decodedCategories.filter { $0.id != 1 })
+                    self.isCategoriesLoaded = true
                 }
-                return
+            } catch {
+                let errorDescription = error.localizedDescription.lowercased()
+                // 💡 Robust check for cancellation to prevent spurious errors
+                if errorDescription.contains("cancelled") || errorDescription.contains("cancellation") || error is CancellationError {
+                    await MainActor.run { self.isCategoriesLoaded = true }
+                    return
+                }
+                await MainActor.run { self.isCategoriesLoaded = true }
             }
+        }
 
-            guard httpResponse.statusCode == 200 else {
-                await MainActor.run {
-                    self.isLoading = false
-                    self.lastFetchError = "Server error. Status: \(httpResponse.statusCode)."
-                }
+    /// Haberleri çeker. 'forceRefresh' false ise ve veriler zaten yüklüyse tekrar çekmez.
+        func fetchPosts(for categoryId: Int? = nil, forceRefresh: Bool = false) async {
+            let categoryToLoad = categoryId ?? 0
+            
+            // Önbellekleme Kontrolü: Eğer veriler boş değilse VE Yenileme zorlanmadıysa VE doğru kategori yüklüyse, çık.
+            if !posts.isEmpty && !forceRefresh && currentLoadedCategoryId == categoryToLoad {
                 return
             }
             
-            let decodedPosts = try JSONDecoder().decode([Post].self, from: data)
-
             await MainActor.run {
-                self.posts = decodedPosts
-                self.isLoading = false
+                self.isLoading = true
+                self.lastFetchError = nil
+            }
+            
+            // _links verisine ihtiyacımız olduğu için API çağrısında bunu belirtiyoruz.
+            var urlString = "\(baseURL)/posts?per_page=15&_embed=true&_fields=id,date,title,content,featured_media,_links,_embedded"
+            if categoryToLoad != 0 { urlString += "&categories=\(categoryToLoad)" }
+            
+            guard let url = URL(string: urlString) else {
+                await MainActor.run { self.isLoading = false; self.lastFetchError = "Invalid API URL." }
+                return
+            }
+            
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                    await MainActor.run { self.isLoading = false; self.lastFetchError = "Server error. Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)." }
+                    return
+                }
+                let decodedPosts = try JSONDecoder().decode([Post].self, from: data)
+                await MainActor.run {
+                    self.posts = decodedPosts
+                    self.isLoading = false
+                    self.currentLoadedCategoryId = categoryToLoad // Yüklü kategoriyi güncelle
+                }
+            } catch {
+                let errorDescription = error.localizedDescription.lowercased()
+                if errorDescription.contains("cancelled") || errorDescription.contains("cancellation") || error is CancellationError {
+                    await MainActor.run { self.isLoading = false }
+                    return
+                }
+                
+                await MainActor.run { self.isLoading = false; self.lastFetchError = "Decoding failed: \(error.localizedDescription)" }
+            }
+        }
+        
+        // MARK: - Yorum Fonksiyonları (401 Hata İşleme Düzeltildi)
+        
+        func fetchComments(forPostId postId: Int) async {
+            let urlString = "\(baseURL)/comments?post=\(postId)&per_page=100&orderby=date&order=asc"
+            guard let url = URL(string: urlString) else { return }
+            
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                let decodedComments = try JSONDecoder().decode([Comment].self, from: data)
+                
+                await MainActor.run {
+                    self.comments[postId] = decodedComments
+                }
+            } catch {
+                print("Yorumlar çekilemedi: \(error.localizedDescription)")
+            }
+        }
+        
+    func postComment(postId: Int, authorName: String, authorEmail: String, content: String) async -> (success: Bool, message: String) {
+            let urlString = "\(baseURL)/comments"
+            guard let url = URL(string: urlString) else {
+                return (false, "Geçersiz API adresi.")
             }
 
-        } catch {
-            await MainActor.run {
-                self.isLoading = false
-                self.lastFetchError = "Decoding failed: \(error.localizedDescription)"
+            let body: [String: Any] = [
+                "post": postId,
+                "author_name": authorName,
+                "author_email": authorEmail,
+                "content": content
+            ]
+            
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
+                return (false, "Yorum verisi hazırlanırken hata oluştu.")
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // Sunucu ve Güvenlik Duvarı Engellerini Aşmak İçin User-Agent Ekleme
+            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148", forHTTPHeaderField: "User-Agent")
+            
+            request.httpBody = jsonData
+            
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    return (false, "Sunucudan geçerli yanıt alınamadı.")
+                }
+                
+                if httpResponse.statusCode == 201 {
+                    await fetchComments(forPostId: postId)
+                    return (true, "Yorumunuz başarıyla gönderildi. Onaylandıktan sonra yayınlanacaktır.")
+                } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    // Ayrıntılı hata mesajı almak için yanıt gövdesini çözmeyi dene
+                    let responseBodyString = String(data: data, encoding: .utf8) ?? "Bilinmeyen sunucu yanıtı."
+                    
+                    // CRITICAL: 401/403 için çok spesifik, eyleme geçirilebilir hata mesajı.
+                    let specificErrorMessage = """
+                    Yorum gönderme yetkiniz yok (\(httpResponse.statusCode) Hata Kodu). Bu, anonim yorumlara izin verilmesine rağmen sunucunuzun (web sitenizin) mobil uygulamadan gelen bu isteği engellediği anlamına gelir.
+
+                    LÜTFEN WEB SİTENİZDE ŞU ADIMLARI KONTROL EDİN:
+                    
+                    1. Yorum Eklentisi: wpDiscuz (veya benzeri bir eklenti) kullanıyorsanız, LÜTFEN EKLENTİYİ GEÇİCİ OLARAK DEVRE DIŞI BIRAKIN ve tekrar deneyin. Bu eklentiler standart API'yi engeller.
+                    
+                    2. Güvenlik Eklentileri: Wordfence, iThemes Security, Sucuri gibi güvenlik eklentilerinin "API koruması" ayarlarını ve "Canlı Trafik" loglarını kontrol edin. İstek muhtemelen bu eklentiler tarafından "kötü amaçlı" (bot) olarak engelleniyor.
+                    
+                    3. Hosting Güvenliği (WAF): Hosting panelinizdeki (cPanel, Plesk vb.) ModSecurity veya WAF (Web Application Firewall) ayarlarında `POST /wp-json/wp/v2/comments` yolunun engellenip engellenmediğini kontrol edin veya hosting firmanızdan mobil istekleri beyaz listeye almalarını isteyin.
+                    
+                    """
+                    
+                     return (false, specificErrorMessage)
+
+                } else if httpResponse.statusCode == 400 {
+                    // 400 hatalarını (örneğin spam, eksik alanlar, geçersiz e-posta) ele almak
+                    // Tekrar denemeye gerek yok, data zaten üstte alınmış olmalı.
+                    let data = data
+                    if let errorResponse = try? JSONDecoder().decode([String: String].self, from: data), let errorMessage = errorResponse["message"] {
+                        return (false, "Yorum gönderilemedi: \(errorMessage)")
+                    }
+                    return (false, "Yorum gönderilirken bir hata oluştu. Sunucu kodu: \(httpResponse.statusCode)")
+                } else {
+                    return (false, "Yorum gönderilirken bir hata oluştu. Sunucu kodu: \(httpResponse.statusCode)")
+                }
+
+            } catch {
+                return (false, "Ağ hatası: \(error.localizedDescription)")
             }
         }
     }
-}
