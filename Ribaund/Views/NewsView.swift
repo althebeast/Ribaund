@@ -11,6 +11,11 @@ struct NewsView: View {
     @ObservedObject var service: WordPressService
     @State private var selectedCategoryId: Int = 0
     
+    @State private var isSearchFocused: Bool = false
+        
+        // Arama debounce için görev
+        @State private var searchTask: Task<Void, Never>?
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -50,31 +55,70 @@ struct NewsView: View {
                                     .listRowSeparator(.hidden)
                                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                                     .background(Color.clear)
-                                }
-                            }
-                        }
-                        .listStyle(.plain)
-                        .refreshable {
-                            // Pull-to-refresh her zaman zorla yenileme yapar
-                            await service.fetchPosts(for: selectedCategoryId, forceRefresh: true)
-                        }
+                                    .onAppear {
+                                                                            if let lastPost = service.posts.last, lastPost.id == post.id && service.canLoadMore {
+                                                                                Task { await service.loadNextPage() }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                // MARK: - Yükleme Göstergesi
+                                                                if service.canLoadMore {
+                                                                    HStack {
+                                                                        Spacer()
+                                                                        ProgressView("Daha Fazla Yükleniyor...")
+                                                                        Spacer()
+                                                                    }
+                                                                    .padding(.vertical, 15)
+                                                                    .listRowSeparator(.hidden)
+                                                                } else if service.posts.count > 0 {
+                                                                    Text("Listenin sonuna ulaştınız.")
+                                                                        .font(.caption)
+                                                                        .foregroundColor(.secondary)
+                                                                        .frame(maxWidth: .infinity)
+                                                                        .padding(.vertical, 10)
+                                                                        .listRowSeparator(.hidden)
+                                                                }
+                                                            }
+                                                            .listStyle(.plain)
+                                                            .refreshable {
+                                                                // Yenileme yaparken arama filtresini koru
+                                                                await service.fetchPosts(for: selectedCategoryId, searchQuery: service.searchText.isEmpty ? nil : service.searchText, forceRefresh: true)
+                                                            }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .navigationTitle("Haberler")
-            .task {
-                await service.fetchCategories()
-                
-                // Geri dönüldüğünde tekrar yüklenmeyi önlemek için sadece posts boşsa çek
-                if service.posts.isEmpty {
-                    await service.fetchPosts()
-                }
-            }
-            .onChange(of: selectedCategoryId) { newId in
-                // Kategori değiştiğinde zorla yenileme yapar
-                Task { await service.fetchPosts(for: newId, forceRefresh: true) }
-            }
+            // MARK: - Arama Özelliği
+                        .searchable(text: $service.searchText, placement: .automatic, prompt: "Haberlerde Ara...")
+                        .onSubmit(of: .search) {
+                            // Submit edildiğinde hemen ara
+                            searchTask?.cancel()
+                            Task { await service.startSearch() }
+                        }
+                        .onChange(of: service.searchText) { newQuery in
+                            // Debounce mekanizması: Kullanıcı yazmayı bıraktıktan 0.5 saniye sonra ara
+                            searchTask?.cancel()
+                            searchTask = Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 saniye bekle
+                                // Eğer yeni sorgu boş değilse veya son yüklenen sorgu boş değilse (yani bir değişiklik varsa) ara.
+                                if newQuery != service.lastLoadedSearchText {
+                                    await service.startSearch()
+                                }
+                            }
+                        }
+                        
+                        .task {
+                            await service.fetchCategories()
+                            if service.posts.isEmpty { await service.fetchPosts() }
+                        }
+                        .onChange(of: selectedCategoryId) { newId in
+                            // Kategori değiştiğinde arama metnini sıfırla ve yeni kategoriyi yükle
+                            service.searchText = ""
+                            Task { await service.fetchPosts(for: newId, forceRefresh: true) }
+                        }
         }
         .navigationViewStyle(.stack)
     }
